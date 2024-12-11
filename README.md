@@ -1,2 +1,2 @@
-# Pruebas_FlatSat-HEX20-
+# Pruebas_FlatSat_HEX20
 Sistema de adquision de datos del FlatSat
