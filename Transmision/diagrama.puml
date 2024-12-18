@@ -1,0 +1,88 @@
+@startuml
+
+start
+
+:Inicializar comunicación serial;
+:Inicializar pines con setupPins();
+:Configurar transmisor con setupTransmitter();
+
+' Función setupPins
+partition "setupPins" {
+  :Configurar pines de transmisión y recepción;
+  :Configurar SPI;
+  :Configurar pines del ADF7021;
+  :Configurar pines del FlatSat;
+}
+
+' Función setupTransmitter
+partition "setupTransmitter" {
+  :Configurar SPI.begin();
+  :Configuración del ADF7021 (REG0, REG1, REG2, REG3, REG15);
+  :Habilitar chip ADF7021;
+  :Configurar registros del ADF7021;
+}
+
+:Comenzar bucle principal (loop);
+
+while (¿Hay datos disponibles en Serial1?) is (Sí)
+  :Llamar a receiveTelemetry();
+  :Leer paquete de telemetría;
+  :Almacenar datos en telemetryBuffer;
+  :Actualizar índice del buffer;
+endwhile
+
+:Imprimir telemetría con printTelemetry();
+
+if (¿Buffer contiene datos?) then (Sí)
+  :Llamar a transmitTelemetryBuffer();
+  :Transmitir datos en el buffer;
+else (No)
+  :Esperar nuevos datos;
+endif
+
+stop
+
+' Función receiveTelemetry
+partition "receiveTelemetry" {
+  :Verificar si hay datos disponibles en Serial1;
+  :Leer datos byte a byte;
+  :Almacenar paquete recibido en el buffer;
+  :Actualizar índice del buffer;
+  if (¿Buffer lleno?) then (Sí)
+    :Mostrar mensaje "Buffer overflow";
+  endif
+}
+
+' Función printTelemetry
+partition "printTelemetry" {
+  :Recorrer los paquetes en el buffer;
+  :Imprimir datos de cada paquete en formato binario;
+}
+
+' Función transmitTelemetryBuffer
+partition "transmitTelemetryBuffer" {
+  :Recorrer cada paquete en el buffer;
+  :Transmitir cada byte del paquete;
+  :Imprimir mensaje "Packet transmitted";
+}
+
+' Función writeRegister
+partition "writeRegister" {
+  :Calcular el número de bytes a enviar;
+  :Enviar cada byte utilizando SPI.transfer();
+}
+
+' Función loadRegister
+partition "loadRegister" {
+  :Activar carga de registros en el ADF7021;
+  :Esperar 1 ms;
+  :Desactivar carga de registros;
+}
+
+' Función transmitData
+partition "transmitData" {
+  :Esperar el flanco positivo de CLK_OUT_PIN;
+  :Transmitir cada bit de datos de 32 bits en el pin TRANSMIT_PIN;
+}
+
+@enduml
