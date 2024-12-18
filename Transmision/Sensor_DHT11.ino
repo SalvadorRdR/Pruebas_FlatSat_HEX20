@@ -16,7 +16,7 @@ uint16_t calculateCRC(const uint8_t *data, size_t length);
 
 void setup() {
   Serial.begin(115200);    // UART principal
-  Serial1.begin(9600, SERIAL_8N1, RXD2, TXD2); // UART adicional: TX=16, RX=17 (ajustar pines según conexión)
+  Serial1.begin(9600, SERIAL_8N1, RXD2, TXD2); // UART adicional: TX=17, RX=16 (ajustar pines según conexión)
   
   Serial.println("Inicializando DHT11...");
   dht.begin();
@@ -40,7 +40,7 @@ void loop() {
     0x01,                   // Version
     0x51,                   // APID
     0x00, 0x01,             // Sequence Number (ejemplo)
-    0x00, 0x2E,             // Packet Size: 46 bytes + CRC (2 bytes)
+    0x00, 0x3C,             // Packet Size: 60 bytes
     0x00, 0x00, 0x00,       // OBC Time Hdr (placeholder)
     0x11, 0x00, 0x2A        // CRP Code y Data Size (42 bytes)
   };
