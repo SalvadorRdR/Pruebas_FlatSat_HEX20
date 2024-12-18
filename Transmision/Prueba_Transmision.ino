@@ -66,7 +66,6 @@ void loadRegister() {
   digitalWrite(SLE_PIN, LOW); // Desactiva la carga de los registros
 }
 
-
 // Función para configurar el transmisor
 void setupTransmitter() {
   // Configura SPI para la configuración
