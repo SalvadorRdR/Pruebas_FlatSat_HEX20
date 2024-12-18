@@ -48,123 +48,131 @@ void setupPins(){
   digitalWrite(TRANSMIT_PIN, LOW); // Establece el pin TRANSMIT en bajo
 }
 
+// Función para escribir en un registro del ADF7021
 void writeRegister(uint32_t data, uint8_t length) {
-  // Calculate number of bytes to send
+  // Calcula el número de bytes a enviar
   int numBytes = (length + 7) / 8; 
   
-  // Send each byte over SPI
+  // Envía cada byte a través de SPI
   for (int i = numBytes - 1; i >= 0; i--) {
-    SPI.transfer((uint8_t)(data >> (i * 8))); // Send each byte, MSB first
+    SPI.transfer((uint8_t)(data >> (i * 8))); // Envía cada byte, comenzando por el byte más significativo (MSB)
   }
 }
 
-void loadRegister(){
-  digitalWrite(SLE_PIN, HIGH); 
-  delay(1);
-  digitalWrite(SLE_PIN, LOW); 
+// Función para cargar los registros en el ADF7021
+void loadRegister() {
+  digitalWrite(SLE_PIN, HIGH); // Activa la carga de los registros
+  delay(1); // Espera 1 ms
+  digitalWrite(SLE_PIN, LOW); // Desactiva la carga de los registros
 }
 
-void setupTransmitter(){
-  // Configure SPI for setup
+
+// Función para configurar el transmisor
+void setupTransmitter() {
+  // Configura SPI para la configuración
   SPI.begin();
   SPI.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE0));
   
-  digitalWrite(CE_PIN, HIGH); // Enable chip
-  delay(1); // Wait for XTAL
+  digitalWrite(CE_PIN, HIGH); // Habilita el chip
+  delay(1); // Espera a que el cristal oscilador (XTAL) se estabilice
 
-  // Set registers
-  writeRegister(REG1, 26);
-  loadRegister();
-  delay(1);
+  // Configura los registros del ADF7021
+  writeRegister(REG1, 26); // Escribe en el registro 1
+  loadRegister(); // Carga el registro
+  delay(1); // Espera 1 ms
 
-  writeRegister(REG3, 32);
-  loadRegister();
+  writeRegister(REG3, 32); // Escribe en el registro 3
+  loadRegister(); // Carga el registro
   
-  writeRegister(REG0, 32);
-  loadRegister();
-  delay(1);
+  writeRegister(REG0, 32); // Escribe en el registro 0
+  loadRegister(); // Carga el registro
+  delay(1); // Espera 1 ms
 
-  writeRegister(REG2, 31);
-  loadRegister();
+  writeRegister(REG2, 31); // Escribe en el registro 2
+  loadRegister(); // Carga el registro
   
-  writeRegister(REG15, 32);
-  loadRegister();
+  writeRegister(REG15, 32); // Escribe en el registro 15
+  loadRegister(); // Carga el registro
   
-  Serial.println("Transmission setup");
+  Serial.println("Transmission setup"); // Imprime un mensaje indicando que la configuración de transmisión está completa
 }
 
+// Función para transmitir datos
 void transmitData(uint32_t data) {
-  // Ensure that the data is clocked in on the positive edge of CLKOUT
+  // Asegura que los datos se registren en el flanco positivo de CLKOUT
   for (int i = 31; i >= 0; i--) {
-    // Wait for the positive edge of CLKOUT
+    // Espera el flanco positivo de CLKOUT
     while (digitalRead(CLK_OUT_PIN) == LOW);
     while (digitalRead(CLK_OUT_PIN) == HIGH);
 
+    // Escribe el bit correspondiente en el pin de transmisión
     digitalWrite(TRANSMIT_PIN, (data >> i) & 0x01);
   }
-  Serial.println("Data sent");
 }
 
+// Función para recibir telemetría
 void receiveTelemetry() {
-  if (Serial1.available() > 0) {
-    uint8_t packet[MAX_PACKET_SIZE];
-    uint8_t length = 0;
+  if (Serial1.available() > 0) { // Verifica si hay datos disponibles en el puerto serial 1
+    uint8_t packet[MAX_PACKET_SIZE]; // Crea un buffer para almacenar el paquete recibido
+    uint8_t length = 0; // Inicializa la longitud del paquete a 0
     
-    // Read telemetry packet from UART
-    while (Serial1.available() > 0 && length < MAX_PACKET_SIZE) {
-      packet[length++] = Serial1.read();
+    // Leer el paquete de telemetría desde UART
+    while (Serial1.available() > 0 && length < MAX_PACKET_SIZE) { // Mientras haya datos disponibles y no se exceda el tamaño máximo del paquete
+      packet[length++] = Serial1.read(); // Lee un byte del puerto serial 1 y lo almacena en el buffer, incrementando la longitud
     }
 
-    // Store packet in the buffer
-    if (bufferIndex < BUFFER_SIZE) {
-      memcpy(telemetryBuffer[bufferIndex], packet, length);
-      packetLengths[bufferIndex] = length;
-      bufferIndex++;
+    // Almacenar el paquete en el buffer
+    if (bufferIndex < BUFFER_SIZE) { // Verifica si hay espacio en el buffer
+      memcpy(telemetryBuffer[bufferIndex], packet, length); // Copia los datos leídos al buffer de telemetría
+      packetLengths[bufferIndex] = length; // Almacena la longitud del paquete en el array de longitudes
+      bufferIndex++; // Incrementa el índice del buffer
     } else {
-      // Buffer is full, handle overflow
-      Serial.println("Buffer overflow");
+      // El buffer está lleno, manejar el desbordamiento
+      Serial.println("Buffer overflow"); // Imprime un mensaje de desbordamiento del buffer
     }
   }
 }
 
+// Función para imprimir telemetría
 void printTelemetry() {
-  for (uint8_t i = 0; i < bufferIndex; i++) {
+  for (uint8_t i = 0; i < bufferIndex; i++) { // Recorre cada paquete en el buffer
     Serial.print("Packet ");
     Serial.print(i);
     Serial.print(": ");
-    for (uint8_t j = 0; j < packetLengths[i]; j++) {
-      Serial.print(telemetryBuffer[i][j], BIN);
+    for (uint8_t j = 0; j < packetLengths[i]; j++) { // Recorre cada byte en el paquete
+      Serial.print(telemetryBuffer[i][j], BIN); // Imprime el byte en formato binario
       Serial.print(" ");
     }
     Serial.println();
   }
-  bufferIndex = 0; // clear buffer
+  bufferIndex = 0; // Limpia el buffer
 }
 
+// Función para transmitir el buffer de telemetría
 void transmitTelemetryBuffer() {
-  for (uint8_t i = 0; i < bufferIndex; i++) {
+  for (uint8_t i = 0; i < bufferIndex; i++) { // Recorre cada paquete en el buffer
     Serial.print("Transmitting Packet ");
     Serial.print(i);
     Serial.println(":");
-    for (uint8_t j = 0; j < packetLengths[i]; j++) {
-      // Assuming each byte of data is sent in sequence.
-      transmitData(telemetryBuffer[i][j]);
+    for (uint8_t j = 0; j < packetLengths[i]; j++) { // Recorre cada byte en el paquete
+      // Asumiendo que cada byte de datos se envía en secuencia.
+      transmitData(telemetryBuffer[i][j]); // Transmite cada byte
     }
     Serial.println("Packet transmitted");
   }
-  bufferIndex = 0; // Clear buffer after transmission
+  bufferIndex = 0; // Limpia el buffer después de la transmisión
 }
 
-
+// Función de configuración inicial
 void setup() {
-  setupPins();
-  Serial.begin(9600);
-  Serial1.begin(9600); // FS Serial initialization
-  setupTransmitter();  
+  setupPins(); // Configura los pines
+  Serial.begin(9600); // Inicializa la comunicación serial a 9600 baudios
+  Serial1.begin(9600); // Inicializa la comunicación serial adicional a 9600 baudios
+  setupTransmitter(); // Configura el transmisor
 }
 
+// Función principal de bucle
 void loop() {
-  // transmit dummy data
-  receiveTelemetry();
-  printTelemetry();
+  receiveTelemetry(); // Recibe telemetría
+  printTelemetry(); // Imprime telemetría
 }
