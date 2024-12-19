@@ -1,0 +1,68 @@
+@startuml
+
+start
+
+:Incluir librerías Adafruit_Sensor.h, DHT.h, DHT_U.h;
+:Definir DHTPIN = 4;
+:Definir DHTTYPE = DHT11;
+:Definir TXD2 = 17;
+:Definir RXD2 = 16;
+:Crear objeto DHT dht(DHTPIN, DHTTYPE);
+:Declarar función calculateCRC;
+
+:Serial.begin(115200);
+:Serial1.begin(9600, SERIAL_8N1, RXD2, TXD2);
+:Serial.println("Inicializando DHT11...");
+:dht.begin();
+
+while (verdadero) is (loop)
+  :delay(2000);
+  :humedad = dht.readHumidity();
+  :temperatura = dht.readTemperature();
+
+  if (isnan(humedad) || isnan(temperatura)) then (Sí)
+    :Serial.println("¡Error al leer el DHT11!");
+    end
+  endif
+
+  :Inicializar packet[60];
+  :packet[0..2] = 0x48, 0x32, 0x30;   ' Header
+  :packet[3] = 0x01;                  ' Versión
+  :packet[4] = 0x51;                  ' APID
+  :packet[5..6] = 0x00, 0x01;         ' Sequence Number
+  :packet[7..8] = 0x00, 0x3C;         ' Packet Size
+  :packet[9..11] = 0x00, 0x00, 0x00;  ' OBC Time Hdr
+  :packet[12..14] = 0x11, 0x00, 0x2A; ' CRP Code y Data Size
+  :packet[26] = temperatura;
+  :packet[27] = humedad;
+  :Llenar packet[28..56] con 0x00;
+  :crc = calculateCRC(packet, 58);
+  :packet[58] = (crc >> 8) & 0xFF;
+  :packet[59] = crc & 0xFF;
+
+  :Serial1.write(packet, 60);
+  :Imprimir paquete en Serial;
+endwhile
+
+stop
+
+partition "calculateCRC" {
+  :crc = 0xFFFF;
+  :i = 0;
+  while (i < length)
+    :crc ^= (data[i] << 8);
+    :bit = 0;
+    while (bit < 8)
+      if (crc & 0x8000) then (Sí)
+        :crc = (crc << 1) ^ 0x1021;
+      else (No)
+        :crc <<= 1;
+      endif
+      :bit++;
+    endwhile
+    :i++;
+  endwhile
+  :return crc;
+}
+
+@enduml
