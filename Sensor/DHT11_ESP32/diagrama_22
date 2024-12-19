@@ -1,0 +1,47 @@
+@startuml
+
+start
+
+:Inicializar comunicación serial y pines;
+:Inicializar sensor DHT11;
+
+partition "Lectura de Datos" {
+  :Leer datos de temperatura y humedad de un sensor DHT11 conectado a un ESP32;
+  if (¿Lectura válida?) then (Sí)
+    :Continuar con la creación del paquete;
+  else (No)
+    :Mostrar mensaje de error en el monitor serial;
+    :Terminar anticipadamente la función loop();
+    stop
+  endif
+}
+
+partition "Creación del Paquete" {
+  :Crear un paquete de datos que incluye un encabezado, versión, longitud de datos, los valores de temperatura y humedad, y un CRC para verificar la integridad;
+  :Bytes 0-2 (Encabezado): 0x48, 0x32, 0x30 ('H20' en ASCII);
+  :Byte 3 (Versión): 0x01;
+  :Bytes 4-5 (Longitud de Datos): Longitud de los datos incluidos en el paquete;
+  :Bytes 6-7 (Datos): Valores de humedad y temperatura;
+  :Bytes 8-9 (CRC): Código de redundancia cíclica para verificación;
+}
+
+partition "Comunicación UART" {
+  :Transmitir este paquete a través de una comunicación serial UART a otro dispositivo o sistema;
+  :Se utiliza Serial1 (UART2 en el ESP32) para enviar los datos;
+  :La comunicación se establece a 9600 baudios, con configuración de 8 bits de datos, sin bit de paridad y 1 bit de parada (8N1);
+}
+
+partition "Validación y Manejo de Errores" {
+  :El código verifica si las lecturas del sensor son válidas antes de continuar;
+  if (¿Lectura válida?) then (Sí)
+    :Continuar con el envío de datos;
+  else (No)
+    :Mostrar mensaje de error en el monitor serial;
+    :Terminar anticipadamente la función loop();
+  endif
+  :El cálculo del CRC y su inclusión en el paquete ayudan a detectar errores en la transmisión o recepción de datos;
+}
+
+stop
+
+@enduml
